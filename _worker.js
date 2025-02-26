@@ -1,7 +1,8 @@
 export default {
-  async fetch(request, env, ctx) {
-    return handleRequest(event.request);
-  },
+	async fetch(request, env, ctx) {
+		console.log(123)
+		return handleRequest(request);
+	},
 };
 
 async function handleRequest(request) {
