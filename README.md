@@ -5,9 +5,6 @@
 - 群聊: [HeroCore](https://t.me/HeroCore)
 - 频道: [HeroMsg](https://t.me/HeroMsg)
 
-![image](https://github.com/user-attachments/assets/72b35862-16cc-4224-89e1-ad0419a7ac4e)
-
-
 ## 简介
 
 这个 Cloudflare Workers 脚本充当了一个反向代理，它的主要功能是接收客户端的请求，并将请求代理到目标地址，然后将目标地址的响应返回给客户端。具体功能包括：
@@ -78,6 +75,8 @@
 
 - [Cloudflare Workers 文档](https://developers.cloudflare.com/workers)
 - [Cloudflare Workers 设置](https://developers.cloudflare.com/workers/platform/settings)
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
 
 ## 许可证
 
