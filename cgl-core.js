@@ -6,7 +6,7 @@ const CONFIG = {
     EXPIRY_OPTIONS: [5, 15, 30, 60, 360, 1440], // 快捷过期选项（分钟）
     // Cookie 配置
     COOKIE_NAME: "cgl_token",    // 更改Cookie名称以避免与Cloudflare自动添加的token冲突
-    COOKIE_SECRET: "your_cookie_secret", // 加密密钥（必须修改！建议 16 位以上随机字符串）
+    COOKIE_SECRET: "your_cookie_secret_" + Math.random().toString(36).substring(2, 15), // 加密密钥（随机生成）
     HEADER_AUTH_KEY: "x-cgl-password" // 自定义请求头名称（用于通过请求头传密码）
 };
 
@@ -81,7 +81,7 @@ const PASSWORD_FORM = (error = '') => `
         验证并访问
       </button>
       <div class="cgl-error">${error || '&nbsp;'}</div>
-      <div class="cgl-tip">有效期内所有用户访问该域名无需重复验证（Cookie 自动保存）</div>
+      <div class="cgl-tip">有效期内所有用户访问该域名无需重复验证（Cookie 自动保存，已加密）</div>
     </form>
   </div>
   <script>
@@ -165,7 +165,7 @@ async function injectExpiryNotice(originalResponse, remainingMinutes) {
     return originalResponse;
 }
 
-// 核心验证逻辑（新增 Cookie/请求头跳过验证）
+// 核心验证逻辑（新增 Cookie/请求头验证跳过逻辑）
 export async function handleAuth(params) {
     const {request, env, ctx, originalLogic, next} = params;
     const now = Date.now();
@@ -193,11 +193,11 @@ export async function handleAuth(params) {
     }
 
     // 打印所有请求头
-    console.log("=== 所有请求头 ===");
-    for (const [key, value] of request.headers.entries()) {
-        console.log(`${key}: ${value}`);
-    }
-    console.log("=================");
+    // console.log("=== 所有请求头 ===");
+    // for (const [key, value] of request.headers.entries()) {
+    //     console.log(`${key}: ${value}`);
+    // }
+    // console.log("=================");
 
     // -------------------------- 新增：Cookie/请求头验证跳过逻辑 --------------------------
     let skipAuth = false;
@@ -212,10 +212,12 @@ export async function handleAuth(params) {
 
     // 2. 检查 Cookie 是否包含有效密码（若请求头未匹配）
     if (!skipAuth) {
-        // 暂时不加密，直接存储明文密码到Cookie中
+        // 使用加密方式存储密码到Cookie中
         const cookieValue = getCookieFromHeaders(request.headers, CONFIG.COOKIE_NAME);
         if (cookieValue) {
-            if (cookieValue === CONFIG.PASSWORD) {
+            // 解密 Cookie 值
+            const decryptedPassword = decryptCookie(cookieValue, CONFIG.COOKIE_SECRET);
+            if (decryptedPassword === CONFIG.PASSWORD) {
                 skipAuth = true;
             }
         }
@@ -229,7 +231,7 @@ export async function handleAuth(params) {
         else if (next) originalResponse = await next();
         else return new Response("验证通过，但未配置原逻辑", {status: 500});
         // 注入有效期提示
-        return injectExpiryNotice(originalResponse, remainingMinutes);
+        return originalResponse;
     }
     // -------------------------- Cookie/请求头跳过逻辑结束 --------------------------
 
@@ -303,16 +305,16 @@ export async function handleAuth(params) {
                     request.headers.get("User-Agent") || "unknown"
                 ).run();
 
-                // 暂时不加密，直接将密码明文存储到Cookie中
-                // const encryptedPassword = encryptCookie(CONFIG.PASSWORD, CONFIG.COOKIE_SECRET);
+                // 加密密码并存储到Cookie中
+                const encryptedPassword = encryptCookie(CONFIG.PASSWORD, CONFIG.COOKIE_SECRET);
+                // console.log(`[CGL DEBUG] Encrypted password: ${encryptedPassword}`)
                 const cookieExpiry = new Date(expiryTime).toUTCString();
-                // const cookie = `${CONFIG.COOKIE_NAME}=${encodeURIComponent(CONFIG.PASSWORD)}; Path=/; Expires=${cookieExpiry}; HttpOnly; Secure; SameSite=Lax`;
 
                 // 修改Cookie设置，移除Secure标志以适应HTTP环境，或者根据实际情况动态设置
                 const isHttps = url.protocol === 'https:';
-                const cookie = `${CONFIG.COOKIE_NAME}=${encodeURIComponent(CONFIG.PASSWORD)}; Path=/; Expires=${cookieExpiry}; HttpOnly; SameSite=Lax` +
+                const cookie = `${CONFIG.COOKIE_NAME}=${encodeURIComponent(encryptedPassword)}; Path=/; Expires=${cookieExpiry}; HttpOnly; SameSite=Lax` +
                     (isHttps ? '; Secure' : '');
-                console.log(`[CGL DEBUG] Setting cookie: ${cookie}`); // 添加调试日志
+                // console.log(`[CGL DEBUG] Setting cookie: ${cookie}`); // 添加调试日志
 
                 // 重定向并设置 Cookie（使用构造函数方式添加headers）
                 const response = new Response(null, {
