@@ -39,6 +39,7 @@ async function handleRequest(request) {
 
 		// 保留查询参数
 		actualUrlStr += url.search;
+		actualUrlStr += url.hash;
 
 		// 创建新 Headers 对象，排除以 'cf-' 开头的请求头
 		const newHeaders = filterHeaders(request.headers, name => !name.startsWith('cf-'));
