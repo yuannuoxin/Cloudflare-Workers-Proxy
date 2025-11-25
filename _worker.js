@@ -3,17 +3,17 @@
 // });
 
 // 导入 CGL 核心验证函数
-import { handleAuth } from './cgl-core.js';
+// import { handleAuth } from './cgl-core.js';
 
 // Worker 通用入口（export default { fetch } 写法）
 export default {
 	async fetch(request, env, ctx) {
 		// 调用 CGL 验证，验证通过后执行原逻辑
-		return handleAuth({
+		return handleRequest({
 			request,    // 原始请求对象
 			env,        // Worker 环境变量（含 R1 数据库绑定）
 			ctx,        // Worker 上下文（用于 waitUntil 等）
-			originalLogic: originalWorkerLogic // 你的原有核心逻辑
+			// originalLogic: originalWorkerLogic // 你的原有核心逻辑
 		});
 	}
 };
