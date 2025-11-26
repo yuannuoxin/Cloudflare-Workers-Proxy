@@ -272,8 +272,8 @@ export async function handleAuth(params) {
         else if (next) originalResponse = await next();
         else return new Response("验证通过，但未配置原逻辑", {status: 500});
 
-        const remainingMinutes = Math.ceil((dbResult.valid_until - now) / 60000);
-        return injectExpiryNotice(originalResponse, remainingMinutes);
+        // const remainingMinutes = Math.ceil((dbResult.valid_until - now) / 60000);
+        return originalResponse;
     }
 
     // 4. 处理密码提交（POST 请求，新增 Cookie 写入）
