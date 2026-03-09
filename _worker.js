@@ -1,22 +1,11 @@
-// addEventListener('fetch', event => {
-// 	event.respondWith(handleRequest(event.request));
-// });
-
-// 导入 CGL 核心验证函数
-import { handleAuth } from './cgl-core.js';
-
-// Worker 通用入口（export default { fetch } 写法）
 export default {
 	async fetch(request, env, ctx) {
-		// 调用 CGL 验证，验证通过后执行原逻辑
-		return handleAuth({
-			request,    // 原始请求对象
-			env,        // Worker 环境变量（含 R1 数据库绑定）
-			ctx,        // Worker 上下文（用于 waitUntil 等）
-			originalLogic: handleRequest // 你的原有核心逻辑
-		});
+		return handleRequest(request);
 	}
 };
+
+// 配置密码 - 请修改为你的密码
+const PASSWORD = "your_password_here"; // 修改这里的密码
 
 async function handleRequest(request) {
 	try {
@@ -31,6 +20,15 @@ async function handleRequest(request) {
 			});
 		}
 
+		// 密码验证
+		const password = url.searchParams.get('cf_pwd');
+		if (!password || password !== PASSWORD) {
+			return jsonResponse({
+				error: '密码错误或未提供密码',
+				hint: '请在 URL 中添加 ?cf_pwd=yourpassword 参数'
+			}, 403);
+		}
+
 		// 从请求路径中提取目标 URL
 		let actualUrlStr = decodeURIComponent(url.pathname.replace("/", ""));
 
@@ -39,7 +37,6 @@ async function handleRequest(request) {
 
 		// 保留查询参数
 		actualUrlStr += url.search;
-		actualUrlStr += url.hash;
 
 		// 创建新 Headers 对象，排除以 'cf-' 开头的请求头
 		const newHeaders = filterHeaders(request.headers, name => !name.startsWith('cf-'));
@@ -241,6 +238,10 @@ function getRootHtml() {
                                   <input type="text" id="targetUrl" placeholder="在此输入目标地址" required>
                                   <label for="targetUrl">目标地址</label>
                               </div>
+                              <div class="input-field">
+                                  <input type="password" id="password" placeholder="请输入访问密码">
+                                  <label for="password">访问密码</label>
+                              </div>
                               <button type="submit" class="btn waves-effect waves-light teal darken-2 full-width">跳转</button>
                           </form>
                       </div>
@@ -254,8 +255,15 @@ function getRootHtml() {
       function redirectToProxy(event) {
           event.preventDefault();
           const targetUrl = document.getElementById('targetUrl').value.trim();
+          const password = document.getElementById('password').value.trim();
           const currentOrigin = window.location.origin;
-          window.open(currentOrigin + '/' + targetUrl, '_blank');
+          let redirectUrl = currentOrigin + '/' + encodeURIComponent(targetUrl);
+          if (password) {
+              // 判断目标 URL 是否已有查询参数
+              const hasQueryParams = targetUrl.includes('?');
+              redirectUrl += hasQueryParams ? '&cf_pwd=' + encodeURIComponent(password) : '?cf_pwd=' + encodeURIComponent(password);
+          }
+          window.open(redirectUrl, '_blank');
       }
   </script>
 </body>
