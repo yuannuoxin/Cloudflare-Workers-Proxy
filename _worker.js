@@ -1,14 +1,16 @@
 export default {
 	async fetch(request, env, ctx) {
-		return handleRequest(request);
+		return handleRequest(request, env);
 	}
 };
 
-// 配置密码 - 请修改为你的密码
-const PASSWORD = "your_password_here"; // 修改这里的密码
+// 配置密码 - 优先从环境变量获取，否则使用默认值
+const DEFAULT_PASSWORD = "your_password_here"; // 默认密码
 
-async function handleRequest(request) {
+async function handleRequest(request, env) {
 	try {
+		// 从环境变量获取密码，如果没有则使用默认值
+		const PASSWORD = env.cfPwd || DEFAULT_PASSWORD;
 		const url = new URL(request.url);
 
 		// 如果访问根目录，返回HTML
