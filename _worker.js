@@ -20,12 +20,25 @@ async function handleRequest(request) {
 			});
 		}
 
-		// 密码验证
-		const password = url.searchParams.get('cf_pwd');
+		// 密码验证 - 优先从 URL 参数获取，其次从 Cookie 获取
+		let password = url.searchParams.get('cf_pwd');
+		if (!password) {
+			// 从 Cookie 中读取密码
+			const cookieHeader = request.headers.get('Cookie');
+			if (cookieHeader) {
+				const cookies = cookieHeader.split(';').map(c => c.trim());
+				for (const cookie of cookies) {
+					if (cookie.startsWith('cf_pwd=')) {
+						password = decodeURIComponent(cookie.split('=')[1]);
+						break;
+					}
+				}
+			}
+		}
 		if (!password || password !== PASSWORD) {
 			return jsonResponse({
 				error: '密码错误或未提供密码',
-				hint: '请在 URL 中添加 ?cf_pwd=yourpassword 参数'
+				hint: '请在 URL 中添加 ?cf_pwd=yourpassword 参数或在 Cookie 中设置 cf_pwd'
 			}, 403);
 		}
 
@@ -258,11 +271,12 @@ function getRootHtml() {
           const password = document.getElementById('password').value.trim();
           const currentOrigin = window.location.origin;
           let redirectUrl = currentOrigin + '/' + encodeURIComponent(targetUrl);
+          
           if (password) {
-              // 判断目标 URL 是否已有查询参数
-              const hasQueryParams = targetUrl.includes('?');
-              redirectUrl += hasQueryParams ? '&cf_pwd=' + encodeURIComponent(password) : '?cf_pwd=' + encodeURIComponent(password);
+              // 将密码设置到 Cookie 中
+              document.cookie = "cf_pwd=" + encodeURIComponent(password) + "; path=/; max-age=31536000; SameSite=Lax";
           }
+          
           window.open(redirectUrl, '_blank');
       }
   </script>
