@@ -48,7 +48,7 @@ async function handleRequest(request, env) {
 		let actualUrlStr = decodeURIComponent(url.pathname.replace("/", ""));
 
 		// 判断用户输入的 URL 是否带有协议
-		actualUrlStr = ensureProtocol(actualUrlStr, url.protocol);
+		actualUrlStr = ensureProtocol(actualUrlStr, url, request);
 
 		// 保留查询参数
 		actualUrlStr += url.search;
@@ -100,8 +100,36 @@ async function handleRequest(request, env) {
 }
 
 // 确保 URL 带有协议
-function ensureProtocol(url, defaultProtocol) {
-	return url.startsWith("http://") || url.startsWith("https://") ? url : defaultProtocol + "//" + url;
+function ensureProtocol(url, urlObj, request) {
+	// 如果 URL 已经带有协议，直接返回
+	if (url.startsWith("http://") || url.startsWith("https://")) {
+		return url;
+	}
+
+	// 如果不以 http 开头，先从 URL 参数获取主域
+	let domain = urlObj.searchParams.get('domain');
+	
+	// 如果 URL 参数中没有，则从 Cookie 中获取
+	if (!domain) {
+		const cookieHeader = request.headers.get('Cookie');
+		if (cookieHeader) {
+			const cookies = cookieHeader.split(';').map(c => c.trim());
+			for (const cookie of cookies) {
+				if (cookie.startsWith('cf_domain=')) {
+					domain = decodeURIComponent(cookie.split('=')[1]);
+					break;
+				}
+			}
+		}
+	}
+
+	// 如果获取到了 domain，则使用 domain + url
+	if (domain) {
+		return domain + url;
+	}
+
+	// 否则使用默认协议
+	return urlObj.protocol + "//" + url;
 }
 
 // 处理重定向
@@ -250,6 +278,10 @@ function getRootHtml() {
                           <span class="card-title center-align"><i class="material-icons left">link</i>Proxy Everything</span>
                           <form id="urlForm" onsubmit="redirectToProxy(event)">
                               <div class="input-field">
+                                  <input type="text" id="domain" placeholder="请输入主域（可选）">
+                                  <label for="domain">主域</label>
+                              </div>
+                              <div class="input-field">
                                   <input type="text" id="targetUrl" placeholder="在此输入目标地址" required>
                                   <label for="targetUrl">目标地址</label>
                               </div>
@@ -269,14 +301,22 @@ function getRootHtml() {
   <script>
       function redirectToProxy(event) {
           event.preventDefault();
+          const domain = document.getElementById('domain').value.trim();
           const targetUrl = document.getElementById('targetUrl').value.trim();
           const password = document.getElementById('password').value.trim();
           const currentOrigin = window.location.origin;
           let redirectUrl = currentOrigin + '/' + encodeURIComponent(targetUrl);
           
+          // 如果有密码，设置到 Cookie 中
           if (password) {
-              // 将密码设置到 Cookie 中
               document.cookie = "cf_pwd=" + encodeURIComponent(password) + "; path=/; max-age=31536000; SameSite=Lax";
+          }
+          
+          // 如果有主域，设置到 Cookie 中
+          if (domain) {
+              document.cookie = "cf_domain=" + encodeURIComponent(domain) + "; path=/; max-age=31536000; SameSite=Lax";
+              // 同时将主域添加到 URL 参数中
+              redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'domain=' + encodeURIComponent(domain);
           }
           
           window.open(redirectUrl, '_blank');
